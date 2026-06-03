@@ -78,6 +78,7 @@ export const CleanupDashboard = ({
 
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
         <CleanupCard
+          icon="D"
           title="Duplicates"
           value={stats.duplicateBookmarkCount}
           detail={`${stats.duplicateGroups.length} groups by normalized URL`}
@@ -86,6 +87,7 @@ export const CleanupDashboard = ({
           disabled={stats.duplicateGroups.length === 0}
         />
         <CleanupCard
+          icon="T"
           title="Untitled"
           value={stats.untitledBookmarks.length}
           detail="Bookmarks without a title"
@@ -94,6 +96,7 @@ export const CleanupDashboard = ({
           disabled={stats.untitledBookmarks.length === 0}
         />
         <CleanupCard
+          icon="U"
           title="Untagged"
           value={stats.untaggedBookmarks.length}
           detail="Bookmarks without MarkPilot tags"
@@ -107,6 +110,7 @@ export const CleanupDashboard = ({
 }
 
 type CleanupCardProps = {
+  icon: string
   title: string
   value: number
   detail: string
@@ -116,6 +120,7 @@ type CleanupCardProps = {
 }
 
 const CleanupCard = ({
+  icon,
   title,
   value,
   detail,
@@ -124,9 +129,14 @@ const CleanupCard = ({
   onReview,
 }: CleanupCardProps) => (
   <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] p-4">
-    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
-      {title}
-    </p>
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
+        {title}
+      </p>
+      <span className="grid h-8 w-8 place-items-center rounded-md bg-[var(--color-accent-soft)] text-xs font-semibold text-[var(--color-accent)]">
+        {icon}
+      </span>
+    </div>
     <p className="mt-3 text-3xl font-semibold text-[var(--color-title)]">
       {value}
     </p>
@@ -146,7 +156,15 @@ const CleanupCard = ({
 
 const EmptyCleanupCard = ({ title }: { title: string }) => (
   <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-elevated)] px-4 py-10 text-center">
-    <p className="text-sm font-semibold text-[var(--color-title)]">{title}</p>
+    <span className="mx-auto grid h-10 w-10 place-items-center rounded-lg bg-[var(--color-accent-soft)] text-sm font-semibold text-[var(--color-accent)]">
+      OK
+    </span>
+    <p className="mt-3 text-sm font-semibold text-[var(--color-title)]">
+      {title}
+    </p>
+    <p className="mt-1 text-xs text-[var(--color-muted)]">
+      No duplicate bookmarks found with the current URL normalization.
+    </p>
   </div>
 )
 
@@ -193,6 +211,7 @@ const DuplicateGroupCard = ({
             key={bookmark.id}
             bookmark={bookmark}
             checked={bookmark.id === keepId}
+            willDelete={bookmark.id !== keepId}
             onSelect={() => onSelectKeep(bookmark.id)}
           />
         ))}
@@ -204,15 +223,21 @@ const DuplicateGroupCard = ({
 type DuplicateBookmarkOptionProps = {
   bookmark: FlatBookmark
   checked: boolean
+  willDelete: boolean
   onSelect: () => void
 }
 
 const DuplicateBookmarkOption = ({
   bookmark,
   checked,
+  willDelete,
   onSelect,
 }: DuplicateBookmarkOptionProps) => (
-  <label className="flex items-start gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-input)] px-3 py-2">
+  <label className={`flex items-start gap-3 rounded-md border px-3 py-2 ${
+    checked
+      ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]'
+      : 'border-[var(--color-border)] bg-[var(--color-input)]'
+  }`}>
     <input
       type="radio"
       checked={checked}
@@ -220,8 +245,17 @@ const DuplicateBookmarkOption = ({
       className="mt-1 h-4 w-4 accent-[var(--color-accent)]"
     />
     <span className="min-w-0">
-      <span className="block truncate text-sm font-semibold text-[var(--color-title)]">
-        Keep {bookmark.title}
+      <span className="flex min-w-0 items-center gap-2">
+        <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${
+          willDelete
+            ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger)]'
+            : 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+        }`}>
+          {willDelete ? 'Will delete' : 'Keep'}
+        </span>
+        <span className="truncate text-sm font-semibold text-[var(--color-title)]">
+          {bookmark.title}
+        </span>
       </span>
       <span className="mt-1 block truncate text-xs text-[var(--color-muted)]">
         {bookmark.folderPath.length > 0

@@ -25,25 +25,23 @@ import type {
   FlatBookmark,
   TagDefinition,
 } from '../types/bookmarks'
+import { AppShell, type SidePanelView } from './AppShell'
 import {
   BookmarkDialog,
   type BookmarkFormValues,
 } from './BookmarkDialog'
-import { BookmarkList, BulkActionBar } from './BookmarkList'
+import { BookmarkManagerView } from './BookmarkManagerView'
 import { CleanupDashboard } from './CleanupDashboard'
 import { MoveBookmarksDialog } from './MoveBookmarksDialog'
+import { Sidebar } from './Sidebar'
 import { TagAssignmentDialog } from './TagAssignmentDialog'
-import { TagPanel } from './TagPanel'
 import { Toast, type ToastState } from './Toast'
 import {
   filterBookmarks,
-  quickFilterLabels,
   type QuickFilter,
 } from './bookmark-filters'
 import { getCleanupStats, type DuplicateBookmarkGroup } from './cleanup-utils'
 import { getFolderOptions } from './folder-options'
-
-type SidePanelView = 'bookmarks' | 'cleanup'
 
 export default function App() {
   const [bookmarks, setBookmarks] = useState<FlatBookmark[]>([])
@@ -163,6 +161,12 @@ export default function App() {
   const cleanupStats = useMemo(() => getCleanupStats(bookmarks), [bookmarks])
   const areAllVisibleSelected = filteredBookmarks.length > 0 &&
     filteredBookmarks.every((bookmark) => selectedBookmarkIds.has(bookmark.id))
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() || quickFilter !== 'all' || selectedTagId,
+  )
+  const itemCountLabel = isLoading
+    ? 'Loading bookmarks...'
+    : `${filteredBookmarks.length} item${filteredBookmarks.length === 1 ? '' : 's'}`
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -641,262 +645,104 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)]">
-      <div className="px-4 py-4">
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3 shadow-[var(--shadow-soft)]">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-muted)]">
-              MarkPilot
-            </p>
-            <h1 className="text-lg font-semibold text-[var(--color-title)]">
-              Smart Bookmark Manager
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowFolders((value) => !value)}
-              className="rounded-md border border-[var(--color-border)] bg-[var(--color-input)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)] transition hover:bg-[var(--color-accent-soft)] md:hidden"
-            >
-              {showFolders ? 'Hide folders' : 'Show folders'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveView('bookmarks')
-                setIsReviewingDuplicates(false)
-              }}
-              className={`rounded-md border px-3 py-2 text-xs font-semibold transition ${
-                activeView === 'bookmarks'
-                  ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
-                  : 'border-[var(--color-border)] text-[var(--color-muted)] hover:bg-[var(--color-accent-soft)]'
-              }`}
-            >
-              Bookmarks
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveView('cleanup')}
-              className={`rounded-md border px-3 py-2 text-xs font-semibold transition ${
-                activeView === 'cleanup'
-                  ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
-                  : 'border-[var(--color-border)] text-[var(--color-muted)] hover:bg-[var(--color-accent-soft)]'
-              }`}
-            >
-              Cleanup
-            </button>
-            <button
-              type="button"
-              onClick={openAddDialog}
-              className="rounded-md border border-[var(--color-border)] bg-[var(--color-input)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)] transition hover:bg-[var(--color-accent-soft)]"
-            >
-              Add
-            </button>
-            <button
-              type="button"
-              onClick={loadBookmarks}
-              className="rounded-md bg-[var(--color-accent)] px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90"
-            >
-              Refresh
-            </button>
-          </div>
-        </header>
+    <>
+      <AppShell
+        activeView={activeView}
+        showSidebar={showFolders}
+        onToggleSidebar={() => setShowFolders((value) => !value)}
+        onChangeView={(view) => {
+          setActiveView(view)
+          if (view === 'bookmarks') {
+            setIsReviewingDuplicates(false)
+          }
+        }}
+        onAddBookmark={openAddDialog}
+        onRefresh={loadBookmarks}
+        sidebar={(
+          <Sidebar
+            bookmarksCount={bookmarks.length}
+            folders={folders}
+            tags={tags}
+            tagCounts={tagCounts}
+            selectedFolderId={selectedFolderId}
+            selectedTagId={selectedTagId}
+            isLoading={isLoading}
+            hasError={Boolean(error)}
+            onSelectFolder={setSelectedFolderId}
+            onSelectTag={setSelectedTagId}
+            onCreateTag={handleCreateTag}
+            onUpdateTag={handleUpdateTag}
+            onDeleteTag={handleDeleteTag}
+          />
+        )}
+      >
+        {activeView === 'cleanup' ? (
+          <CleanupDashboard
+            stats={cleanupStats}
+            isReviewingDuplicates={isReviewingDuplicates}
+            duplicateKeepIds={duplicateKeepIds}
+            onReviewDuplicates={() => setIsReviewingDuplicates(true)}
+            onBackToDashboard={() => setIsReviewingDuplicates(false)}
+            onReviewUntitled={() => {
+              setActiveView('bookmarks')
+              setQuickFilter('untitled')
+              setSelectedTagId(null)
+            }}
+            onReviewUntagged={() => {
+              setActiveView('bookmarks')
+              setQuickFilter('untagged')
+              setSelectedTagId(null)
+            }}
+            onSelectDuplicateKeep={(groupKey, bookmarkId) =>
+              setDuplicateKeepIds((current) => ({
+                ...current,
+                [groupKey]: bookmarkId,
+              }))}
+            onDeleteDuplicateGroup={handleDeleteDuplicateGroup}
+          />
+        ) : (
+          <BookmarkManagerView
+            title={listTitle}
+            itemCountLabel={itemCountLabel}
+            bookmarks={filteredBookmarks}
+            tagsById={tagsById}
+            selectedBookmarkIds={selectedBookmarkIds}
+            searchQuery={searchQuery}
+            quickFilter={quickFilter}
+            selectedCount={selectedCount}
+            areAllVisibleSelected={areAllVisibleSelected}
+            isLoading={isLoading}
+            error={error}
+            isEmptyLibrary={isEmptyLibrary}
+            hasActiveFilters={hasActiveFilters}
+            searchInputRef={searchInputRef}
+            onSearchChange={setSearchQuery}
+            onQuickFilterChange={setQuickFilter}
+            onToggleVisibleSelection={toggleVisibleSelection}
+            onDeleteSelected={handleDeleteSelected}
+            onClearSelection={() => setSelectedBookmarkIds(new Set())}
+            onOpenSelected={handleOpenSelected}
+            onMoveSelected={() => {
+              if (!defaultParentId) {
+                showToast({
+                  tone: 'error',
+                  message: 'No destination folder is available.',
+                })
+                return
+              }
 
-        <div className="mt-4 grid gap-4 md:grid-cols-[240px,1fr]">
-          {showFolders ? (
-            <aside className="rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-soft)]">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-muted)]">
-                  Folders
-                </p>
-                {isLoading ? (
-                  <span className="h-2 w-10 animate-pulse rounded bg-[var(--color-accent-soft)]" />
-                ) : null}
-              </div>
-              <div className="mt-3 space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedFolderId(null)}
-                  className={`flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm transition ${
-                    selectedFolderId === null
-                      ? 'bg-[var(--color-accent-soft)] text-[var(--color-title)]'
-                      : 'text-[var(--color-muted)] hover:bg-[var(--color-accent-soft)]'
-                  }`}
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md border border-[var(--color-border)] bg-[var(--color-input)] text-[10px] text-[var(--color-accent)]">
-                      <span className="library-glyph" />
-                    </span>
-                    <span className="truncate">All Bookmarks</span>
-                  </span>
-                  <span className="rounded-md bg-[var(--color-input)] px-1.5 py-0.5 text-xs font-semibold">
-                    {bookmarks.length}
-                  </span>
-                </button>
-                {isLoading ? (
-                  <FolderSkeleton />
-                ) : error ? (
-                  <p className="rounded-lg bg-[var(--color-accent-soft)] px-3 py-2 text-xs text-[var(--color-muted)]">
-                    Folder tree is unavailable.
-                  </p>
-                ) : (
-                  <FolderTree
-                    folders={folders}
-                    selectedFolderId={selectedFolderId}
-                    onSelectFolder={setSelectedFolderId}
-                  />
-                )}
-              </div>
-              <TagPanel
-                tags={tags}
-                selectedTagId={selectedTagId}
-                tagCounts={tagCounts}
-                onSelectTag={setSelectedTagId}
-                onCreateTag={handleCreateTag}
-                onUpdateTag={handleUpdateTag}
-                onDeleteTag={handleDeleteTag}
-              />
-            </aside>
-          ) : null}
-
-          <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-soft)]">
-            {activeView === 'cleanup' ? (
-              <CleanupDashboard
-                stats={cleanupStats}
-                isReviewingDuplicates={isReviewingDuplicates}
-                duplicateKeepIds={duplicateKeepIds}
-                onReviewDuplicates={() => setIsReviewingDuplicates(true)}
-                onBackToDashboard={() => setIsReviewingDuplicates(false)}
-                onReviewUntitled={() => {
-                  setActiveView('bookmarks')
-                  setQuickFilter('untitled')
-                  setSelectedTagId(null)
-                }}
-                onReviewUntagged={() => {
-                  setActiveView('bookmarks')
-                  setQuickFilter('untagged')
-                  setSelectedTagId(null)
-                }}
-                onSelectDuplicateKeep={(groupKey, bookmarkId) =>
-                  setDuplicateKeepIds((current) => ({
-                    ...current,
-                    [groupKey]: bookmarkId,
-                  }))}
-                onDeleteDuplicateGroup={handleDeleteDuplicateGroup}
-              />
-            ) : (
-              <>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-muted)]">
-                  {listTitle}
-                </p>
-                <p className="text-sm text-[var(--color-muted)]">
-                  {isLoading ? 'Loading bookmarks...' : `${filteredBookmarks.length} items`}
-                </p>
-              </div>
-              <label className="flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-input)] px-3 py-2 text-sm text-[var(--color-muted)] focus-within:border-[var(--color-accent)]">
-                <span className="rounded bg-[var(--color-surface)] px-1.5 py-0.5 text-xs font-semibold">/</span>
-                <input
-                  ref={searchInputRef}
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search bookmarks"
-                  className="w-44 bg-transparent text-sm text-[var(--color-title)] outline-none placeholder:text-[var(--color-muted)]"
-                />
-              </label>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {(Object.keys(quickFilterLabels) as QuickFilter[]).map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setQuickFilter(filter)}
-                  className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
-                    quickFilter === filter
-                      ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
-                      : 'border-[var(--color-border)] text-[var(--color-muted)] hover:bg-[var(--color-accent-soft)]'
-                  }`}
-                >
-                  {quickFilterLabels[filter]}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-4">
-              {isLoading ? (
-                <LoadingList />
-              ) : error ? (
-                <ErrorState message={error} onRetry={loadBookmarks} />
-              ) : filteredBookmarks.length === 0 ? (
-                <EmptyState isLibraryEmpty={isEmptyLibrary} />
-              ) : (
-                <>
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] px-3 py-2">
-                    <p className="text-xs font-semibold text-[var(--color-muted)]">
-                      {selectedCount > 0
-                        ? `${selectedCount} selected`
-                        : 'Select bookmarks for bulk actions'}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={toggleVisibleSelection}
-                        className="rounded-md border border-[var(--color-border)] bg-[var(--color-input)] px-3 py-1.5 text-xs font-semibold text-[var(--color-muted)] transition hover:bg-[var(--color-accent-soft)]"
-                      >
-                        {areAllVisibleSelected ? 'Unselect visible' : 'Select visible'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDeleteSelected}
-                        disabled={selectedCount === 0}
-                        className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
-                      >
-                        Delete selected
-                      </button>
-                    </div>
-                  </div>
-                  <BookmarkList
-                    bookmarks={filteredBookmarks}
-                    tagsById={tagsById}
-                    selectedBookmarkIds={selectedBookmarkIds}
-                    onToggleBookmark={toggleBookmarkSelection}
-                    onEditBookmark={openEditDialog}
-                    onDeleteBookmark={handleDeleteBookmark}
-                    onOpenTagDialog={openTagDialogForBookmark}
-                    onRemoveTag={handleRemoveTagFromBookmark}
-                  />
-                </>
-              )}
-            </div>
-            <BulkActionBar
-              selectedCount={selectedCount}
-              visibleCount={filteredBookmarks.length}
-              areAllVisibleSelected={areAllVisibleSelected}
-              onSelectVisible={toggleVisibleSelection}
-              onClearSelection={() => setSelectedBookmarkIds(new Set())}
-              onOpenSelected={handleOpenSelected}
-              onMoveSelected={() => {
-                if (!defaultParentId) {
-                  showToast({
-                    tone: 'error',
-                    message: 'No destination folder is available.',
-                  })
-                  return
-                }
-
-                setIsMoveDialogOpen(true)
-              }}
-              onTagSelected={openTagDialogForSelected}
-              onDeleteSelected={handleDeleteSelected}
-            />
-              </>
-            )}
-          </section>
-        </div>
-      </div>
+              setIsMoveDialogOpen(true)
+            }}
+            onTagSelected={openTagDialogForSelected}
+            onToggleBookmark={toggleBookmarkSelection}
+            onEditBookmark={openEditDialog}
+            onDeleteBookmark={handleDeleteBookmark}
+            onOpenTagDialog={openTagDialogForBookmark}
+            onRemoveTag={handleRemoveTagFromBookmark}
+            onRetry={loadBookmarks}
+          />
+        )}
+      </AppShell>
       <BookmarkDialog
         mode={bookmarkDialogMode}
         bookmark={editingBookmark}
@@ -928,7 +774,7 @@ export default function App() {
         onApply={handleApplyTags}
       />
       <Toast toast={toast} onDismiss={() => setToast(null)} />
-    </div>
+    </>
   )
 }
 
@@ -950,142 +796,3 @@ const findFolder = (
 
   return null
 }
-
-type FolderTreeProps = {
-  folders: BookmarkFolder[]
-  selectedFolderId: string | null
-  onSelectFolder: (folderId: string) => void
-  depth?: number
-}
-
-const FolderTree = ({
-  folders,
-  selectedFolderId,
-  onSelectFolder,
-  depth = 0,
-}: FolderTreeProps) => {
-  if (folders.length === 0) {
-    return (
-      <div className="rounded-md border border-dashed border-[var(--color-border)] bg-[var(--color-elevated)] px-3 py-4 text-center">
-        <span className="mx-auto grid h-8 w-8 place-items-center rounded-md bg-[var(--color-accent-soft)] text-xs font-semibold text-[var(--color-accent)]">
-          <span className="folder-glyph" />
-        </span>
-        <p className="mt-2 text-xs font-medium text-[var(--color-title)]">
-          No folders yet
-        </p>
-        <p className="mt-1 text-[11px] text-[var(--color-muted)]">
-          New browser folders will show here.
-        </p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-2">
-      {folders.map((folder) => (
-        <div key={folder.id}>
-          <button
-            type="button"
-            onClick={() => onSelectFolder(folder.id)}
-            className={`flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm transition ${
-              selectedFolderId === folder.id
-                ? 'bg-[var(--color-accent-soft)] text-[var(--color-title)]'
-                : 'text-[var(--color-muted)] hover:bg-[var(--color-accent-soft)]'
-            }`}
-            style={{ paddingLeft: `${depth * 12 + 8}px` }}
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md border border-[var(--color-border)] bg-[var(--color-input)] text-[10px] text-[var(--color-warning)]">
-                <span className="folder-glyph" />
-              </span>
-              <span className="truncate">{folder.title}</span>
-            </span>
-            <span className="rounded-md bg-[var(--color-input)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-muted)]">
-              {folder.bookmarkCount}
-            </span>
-          </button>
-          {folder.children.length > 0 ? (
-            <FolderTree
-              folders={folder.children}
-              selectedFolderId={selectedFolderId}
-              onSelectFolder={onSelectFolder}
-              depth={depth + 1}
-            />
-          ) : null}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-const FolderSkeleton = () => (
-  <div className="space-y-2">
-    {Array.from({ length: 5 }).map((_, index) => (
-      <div
-        key={`folder-skeleton-${index}`}
-        className="h-8 animate-pulse rounded-md bg-[var(--color-accent-soft)]"
-        style={{ marginLeft: `${index % 3 === 0 ? 0 : 12}px` }}
-      />
-    ))}
-  </div>
-)
-
-const LoadingList = () => {
-  return (
-    <div className="space-y-3">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div
-          key={`skeleton-${index}`}
-          className="h-16 rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] p-3"
-        >
-          <div className="h-3 w-2/3 animate-pulse rounded bg-[var(--color-accent-soft)]" />
-          <div className="mt-2 h-3 w-1/3 animate-pulse rounded bg-[var(--color-accent-soft)]" />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-type EmptyStateProps = {
-  isLibraryEmpty: boolean
-}
-
-const EmptyState = ({ isLibraryEmpty }: EmptyStateProps) => (
-  <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-elevated)] px-4 py-10 text-center">
-    <span className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-[var(--color-accent-soft)] text-sm font-semibold text-[var(--color-accent)]">
-      <span className="library-glyph scale-125" />
-    </span>
-    <p className="mt-3 text-sm font-semibold text-[var(--color-title)]">
-      {isLibraryEmpty ? 'No bookmarks yet' : 'This folder has no bookmarks'}
-    </p>
-    <p className="mt-2 text-xs text-[var(--color-muted)]">
-      {isLibraryEmpty
-        ? 'Add bookmarks in Chrome or Edge, then refresh MarkPilot.'
-        : 'Pick another folder or return to All Bookmarks.'}
-    </p>
-  </div>
-)
-
-type ErrorStateProps = {
-  message: string
-  onRetry: () => void
-}
-
-const ErrorState = ({ message, onRetry }: ErrorStateProps) => (
-  <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] px-4 py-6">
-    <span className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--color-danger-soft)] text-sm font-semibold text-[var(--color-danger)]">
-      !
-    </span>
-    <p className="mt-3 text-sm font-semibold text-[var(--color-title)]">
-      Unable to load bookmarks
-    </p>
-    <p className="mt-2 text-xs text-[var(--color-muted)]">{message}</p>
-    <button
-      type="button"
-      onClick={onRetry}
-      className="mt-4 rounded-md bg-[var(--color-accent)] px-3 py-2 text-xs font-semibold text-white"
-    >
-      Try again
-    </button>
-  </div>
-)

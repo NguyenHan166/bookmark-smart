@@ -13,6 +13,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
+        app: resolve(__dirname, 'src/app/app.html'),
         sidepanel: resolve(__dirname, 'src/sidepanel/sidepanel.html'),
         popup: resolve(__dirname, 'src/popup/popup.html'),
         'service-worker': resolve(

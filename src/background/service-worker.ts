@@ -1,22 +1,13 @@
-chrome.runtime.onInstalled.addListener(() => {
-  if (!chrome.sidePanel) {
-    return
-  }
-
-  chrome.sidePanel.setOptions({
-    path: 'sidepanel/sidepanel.html',
-    enabled: true,
-  })
-})
-
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!chrome.sidePanel || !tab.windowId) {
-    return
-  }
-
+chrome.action.onClicked.addListener(async () => {
   try {
-    await chrome.sidePanel.open({ windowId: tab.windowId })
+    await chrome.windows.create({
+      url: chrome.runtime.getURL('app/app.html'),
+      type: 'popup',
+      width: 1120,
+      height: 760,
+      focused: true,
+    })
   } catch {
-    // Ignore errors when the panel is already open.
+    // Ignore errors when the browser blocks opening a window.
   }
 })

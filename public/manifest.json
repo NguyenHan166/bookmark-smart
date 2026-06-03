@@ -3,13 +3,9 @@
   "name": "MarkPilot - Smart Bookmark Manager",
   "version": "0.1.0",
   "description": "Filter, organize, clean, and manage bookmarks faster.",
-  "permissions": ["bookmarks", "storage", "tabs", "sidePanel"],
+  "permissions": ["bookmarks", "storage", "tabs"],
   "action": {
-    "default_title": "Open MarkPilot",
-    "default_popup": "popup/popup.html"
-  },
-  "side_panel": {
-    "default_path": "sidepanel/sidepanel.html"
+    "default_title": "Open MarkPilot"
   },
   "background": {
     "service_worker": "service-worker.js",

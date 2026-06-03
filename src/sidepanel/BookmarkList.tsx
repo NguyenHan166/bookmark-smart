@@ -231,14 +231,14 @@ export const BulkActionBar = ({
           <button
             type="button"
             onClick={onDeleteSelected}
-            className="rounded-lg bg-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-600"
+            className="rounded-lg bg-[var(--color-danger)] px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90"
           >
             Delete selected
           </button>
           <button
             type="button"
             onClick={onClearSelection}
-            className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-[var(--color-title)] transition hover:opacity-90"
+            className="rounded-lg bg-[var(--color-input)] px-3 py-2 text-xs font-semibold text-[var(--color-title)] transition hover:opacity-90"
           >
             Clear
           </button>
