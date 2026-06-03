@@ -97,6 +97,16 @@ export const removeBookmark = async (id: string) => {
   return api.bookmarks.remove(id)
 }
 
+export const removeFolderTree = async (id: string) => {
+  const api = getChrome()
+
+  if (!api?.bookmarks) {
+    throw new Error('Chrome bookmarks API is not available in this context.')
+  }
+
+  return api.bookmarks.removeTree(id)
+}
+
 export const getMetadataStore = async (): Promise<MetadataStore> => {
   const storage = getStorageLocal()
   const data = await storage.get(STORAGE_KEYS.metadata)
@@ -327,6 +337,24 @@ export const removeTagFromBookmark = async (
   })
 }
 
+export const removeMetadataForBookmarks = async (bookmarkIds: string[]) => {
+  if (bookmarkIds.length === 0) {
+    return
+  }
+
+  const metadataStore = await getMetadataStore()
+  const bookmarks = { ...metadataStore.bookmarks }
+
+  bookmarkIds.forEach((bookmarkId) => {
+    delete bookmarks[bookmarkId]
+  })
+
+  await setMetadataStore({
+    ...metadataStore,
+    bookmarks,
+  })
+}
+
 export const saveDeleteUndoState = async (
   inputItems: DeletedBookmarkSnapshot[],
   type: UndoState['type'],
@@ -418,14 +446,14 @@ export const restoreLastDeletedBookmarks = async () => {
   }
 }
 
-export const openBookmarkInTab = async (url: string) => {
+export const openBookmarkInTab = async (url: string, active = false) => {
   const api = getChrome()
 
   if (!api?.tabs) {
     throw new Error('Chrome tabs API is not available in this context.')
   }
 
-  return api.tabs.create({ url, active: false })
+  return api.tabs.create({ url, active })
 }
 
 export const openSidePanel = async () => {

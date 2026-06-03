@@ -11,6 +11,8 @@ import {
   moveBookmark,
   openBookmarkInTab,
   removeBookmark,
+  removeFolderTree,
+  removeMetadataForBookmarks,
   removeTagFromBookmark,
   restoreLastDeletedBookmarks,
   saveDeleteUndoState,
@@ -512,6 +514,41 @@ export default function App() {
     }
   }
 
+  const handleDeleteSelectedFolder = async () => {
+    if (!selectedFolderId || !selectedFolder) {
+      return
+    }
+
+    const bookmarksInFolder = bookmarks.filter((bookmark) =>
+      bookmark.folderPathIds.includes(selectedFolderId),
+    )
+    const shouldDelete = window.confirm(
+      `Delete folder "${selectedFolder.title}" and ${bookmarksInFolder.length} bookmark${bookmarksInFolder.length === 1 ? '' : 's'} inside it? This cannot be undone.`,
+    )
+
+    if (!shouldDelete) {
+      return
+    }
+
+    try {
+      await removeFolderTree(selectedFolderId)
+      await removeMetadataForBookmarks(
+        bookmarksInFolder.map((bookmark) => bookmark.id),
+      )
+      setSelectedFolderId(null)
+      await loadBookmarks()
+      showToast({
+        tone: 'success',
+        message: `Folder "${selectedFolder.title}" deleted.`,
+      })
+    } catch (err) {
+      showToast({
+        tone: 'error',
+        message: err instanceof Error ? err.message : 'Unable to delete folder.',
+      })
+    }
+  }
+
   const handleMoveSelected = async (parentId: string) => {
     const result = await Promise.allSettled(
       selectedBookmarks.map((bookmark) =>
@@ -535,6 +572,17 @@ export default function App() {
 
     await loadBookmarks()
     summarizeBulkResult('Open selected', result)
+  }
+
+  const handleOpenBookmark = async (bookmark: FlatBookmark) => {
+    try {
+      await openBookmarkInTab(bookmark.url, true)
+    } catch (err) {
+      showToast({
+        tone: 'error',
+        message: err instanceof Error ? err.message : 'Unable to open bookmark.',
+      })
+    }
   }
 
   const handleCreateTag = async (name: string, color: string) => {
@@ -673,6 +721,7 @@ export default function App() {
             onCreateTag={handleCreateTag}
             onUpdateTag={handleUpdateTag}
             onDeleteTag={handleDeleteTag}
+            onDeleteSelectedFolder={handleDeleteSelectedFolder}
           />
         )}
       >
@@ -735,6 +784,7 @@ export default function App() {
             }}
             onTagSelected={openTagDialogForSelected}
             onToggleBookmark={toggleBookmarkSelection}
+            onOpenBookmark={handleOpenBookmark}
             onEditBookmark={openEditDialog}
             onDeleteBookmark={handleDeleteBookmark}
             onOpenTagDialog={openTagDialogForBookmark}

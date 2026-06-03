@@ -31,9 +31,9 @@ export const BookmarkToolbar = ({
   onToggleVisibleSelection,
   onDeleteSelected,
 }: BookmarkToolbarProps) => (
-  <div>
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div>
+  <div className="min-w-0 overflow-hidden">
+    <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+      <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-muted)]">
           {title}
         </p>
@@ -54,8 +54,8 @@ export const BookmarkToolbar = ({
       </label>
     </div>
 
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] p-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="mt-4 flex min-w-0 flex-wrap items-center justify-between gap-3 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] p-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         {(Object.keys(quickFilterLabels) as QuickFilter[]).map((filter) => (
           <button
             key={filter}
@@ -72,7 +72,7 @@ export const BookmarkToolbar = ({
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <p className="text-xs font-semibold text-[var(--color-muted)]">
           {selectedCount > 0
             ? `${selectedCount} selected`

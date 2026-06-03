@@ -23,8 +23,8 @@ export const AppShell = ({
   sidebar,
   children,
 }: AppShellProps) => (
-  <div className="min-h-screen bg-[var(--color-bg)]">
-    <div className="px-4 py-4">
+  <div className="min-h-screen overflow-x-hidden bg-[var(--color-bg)]">
+    <div className="max-w-full overflow-x-hidden px-4 py-4">
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3 shadow-[var(--shadow-soft)]">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-muted)]">
@@ -78,9 +78,9 @@ export const AppShell = ({
         </div>
       </header>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-[248px,1fr]">
+      <div className="mt-4 grid min-w-0 gap-4 md:grid-cols-[248px,minmax(0,1fr)]">
         {showSidebar ? sidebar : null}
-        <main className="rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-soft)]">
+        <main className="min-w-0 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-soft)]">
           {children}
         </main>
       </div>

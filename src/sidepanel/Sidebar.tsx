@@ -15,6 +15,7 @@ type SidebarProps = {
   onCreateTag: (name: string, color: string) => void
   onUpdateTag: (tagId: string, name: string, color: string) => void
   onDeleteTag: (tag: TagDefinition) => void
+  onDeleteSelectedFolder: () => void
 }
 
 export const Sidebar = ({
@@ -31,6 +32,7 @@ export const Sidebar = ({
   onCreateTag,
   onUpdateTag,
   onDeleteTag,
+  onDeleteSelectedFolder,
 }: SidebarProps) => (
   <aside className="rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-soft)]">
     <div className="flex items-center justify-between gap-3">
@@ -75,6 +77,24 @@ export const Sidebar = ({
         />
       )}
     </div>
+
+    {selectedFolderId ? (
+      <div className="mt-3 rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-3">
+        <p className="text-xs font-semibold text-[var(--color-title)]">
+          Folder actions
+        </p>
+        <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+          Delete the selected folder and everything inside it.
+        </p>
+        <button
+          type="button"
+          onClick={onDeleteSelectedFolder}
+          className="mt-3 w-full rounded-md bg-[var(--color-danger)] px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90"
+        >
+          Delete folder
+        </button>
+      </div>
+    ) : null}
 
     <TagPanel
       tags={tags}
