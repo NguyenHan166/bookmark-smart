@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #f7f7f5;
+  --color-surface: #f3f3ef;
+  --color-panel: #ffffff;
+  --color-elevated: #fbfbfa;
+  --color-input: #ffffff;
+  --color-border: #dfddd7;
+  --color-text: #2f302f;
+  --color-title: #191a19;
+  --color-muted: #72716c;
+  --color-accent: #2563eb;
+  --color-accent-soft: rgba(37, 99, 235, 0.1);
+  --color-danger: #dc2626;
+  --color-danger-soft: rgba(220, 38, 38, 0.1);
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --shadow-soft: 0 18px 50px -32px rgba(28, 30, 27, 0.45);
+  --font-sans: "Segoe UI Variable Text", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #111111;
+    --color-surface: #171717;
+    --color-panel: #1d1d1c;
+    --color-elevated: #242423;
+    --color-input: #191918;
+    --color-border: #343431;
+    --color-text: #e5e3dc;
+    --color-title: #f7f6f1;
+    --color-muted: #aaa79e;
+    --color-accent: #60a5fa;
+    --color-accent-soft: rgba(96, 165, 250, 0.14);
+    --color-danger: #f87171;
+    --color-danger-soft: rgba(248, 113, 113, 0.12);
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --shadow-soft: 0 18px 55px -30px rgba(0, 0, 0, 0.75);
+  }
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background:
+    linear-gradient(180deg, var(--color-bg), var(--color-surface));
+}
+
+#root {
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-title);
+}
+
+.folder-glyph,
+.library-glyph {
+  position: relative;
+  display: block;
+  width: 13px;
+  height: 11px;
+}
+
+.folder-glyph::before {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 6px;
+  height: 3px;
+  border-radius: 2px 2px 0 0;
+  background: currentColor;
+  content: "";
+}
+
+.folder-glyph::after {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  left: 1px;
+  height: 8px;
+  border-radius: 2px;
+  background: currentColor;
+  content: "";
+}
+
+.library-glyph::before,
+.library-glyph::after {
+  position: absolute;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  content: "";
+}
+
+.library-glyph::before {
+  inset: 1px 5px 1px 1px;
+}
+
+.library-glyph::after {
+  inset: 1px 1px 1px 7px;
+}
