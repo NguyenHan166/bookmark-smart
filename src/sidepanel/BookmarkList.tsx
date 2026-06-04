@@ -3,10 +3,9 @@ import type { FlatBookmark, TagDefinition } from '../types/bookmarks'
 const formatUrl = (url: string) => {
   try {
     const parsed = new URL(url)
-    const trimmedPath = parsed.pathname.length > 28
-      ? `${parsed.pathname.slice(0, 28)}...`
-      : parsed.pathname
-    return `${parsed.hostname}${trimmedPath}`
+    const path = parsed.pathname === '/' ? '' : parsed.pathname
+
+    return `${parsed.hostname}${path}`
   } catch {
     return url
   }
@@ -49,27 +48,32 @@ export const BookmarkList = ({
   onOpenTagDialog,
   onRemoveTag,
 }: BookmarkListProps) => (
-  <ul className="min-w-0 space-y-2.5 overflow-hidden">
+  <ul className="min-w-0 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] shadow-[var(--shadow-soft)]">
     {bookmarks.map((bookmark) => {
       const isSelected = selectedBookmarkIds.has(bookmark.id)
+      const tagIds = bookmark.tagIds ?? []
+      const visibleTagIds = tagIds.slice(0, 2)
+      const hiddenTagCount = Math.max(0, tagIds.length - visibleTagIds.length)
 
       return (
         <li
           key={bookmark.id}
-          className={`min-w-0 overflow-hidden rounded-lg border bg-[var(--color-elevated)] px-3 py-2 transition ${
+          className={`group min-w-0 overflow-hidden border-b border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2 transition last:border-b-0 ${
             isSelected
-              ? 'border-[var(--color-accent)] shadow-[0_0_0_1px_var(--color-accent)]'
-              : 'border-[var(--color-border)] hover:border-[var(--color-accent)] hover:bg-[var(--color-panel)]'
+              ? 'bg-[var(--color-accent-soft)] shadow-[inset_3px_0_0_var(--color-accent)]'
+              : 'hover:bg-[var(--color-elevated)]'
           }`}
         >
-          <div className="grid min-w-0 grid-cols-[auto,auto,minmax(0,1fr)] items-center gap-2.5 md:grid-cols-[auto,auto,minmax(0,1fr),auto]">
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => onToggleBookmark(bookmark.id)}
-              aria-label={`Select ${bookmark.title}`}
-              className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
-            />
+          <div className="grid min-h-14 min-w-0 grid-cols-[1.25rem,2rem,minmax(0,1fr),auto] items-center gap-2.5">
+            <label className="grid h-7 w-5 place-items-center" title="Select bookmark">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => onToggleBookmark(bookmark.id)}
+                aria-label={`Select ${bookmark.title}`}
+                className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+              />
+            </label>
             <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-input)] text-xs font-semibold text-[var(--color-muted)]">
               {getDomainInitial(bookmark.domain)}
               {getFaviconUrl(bookmark.url) ? (
@@ -81,36 +85,42 @@ export const BookmarkList = ({
                 />
               ) : null}
             </span>
-            <div className="min-w-0 py-0.5">
-              <p
-                className="max-w-full truncate text-sm font-semibold leading-5 text-[var(--color-title)]"
-                title={bookmark.title}
-              >
-                {bookmark.title}
-              </p>
-              <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--color-muted)]">
-                <span className="max-w-[18rem] truncate" title={bookmark.url}>
-                  {formatUrl(bookmark.url)}
-                </span>
-                {bookmark.folderPath.length > 0 ? (
-                  <span
-                    className="max-w-[18rem] truncate text-[11px]"
-                    title={bookmark.folderPath.join(' / ')}
-                  >
-                    <span className="mr-1 text-[var(--color-accent)]">Folder</span>
-                    {bookmark.folderPath.join(' / ')}
-                  </span>
-                ) : null}
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-2">
+                <p
+                  className="min-w-0 truncate text-sm font-semibold leading-5 text-[var(--color-title)]"
+                  title={bookmark.title}
+                >
+                  {bookmark.title}
+                </p>
                 <span
-                  className="rounded-md bg-[var(--color-accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-accent)]"
+                  className="hidden shrink-0 rounded-md bg-[var(--color-accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-accent)] sm:inline-flex"
                   title={bookmark.domain}
                 >
                   {bookmark.domain}
                 </span>
               </div>
-              {bookmark.tagIds?.length ? (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {bookmark.tagIds.map((tagId) => {
+              <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-[var(--color-muted)]">
+                <span
+                  className="min-w-0 max-w-[42%] truncate"
+                  title={bookmark.url}
+                >
+                  {formatUrl(bookmark.url)}
+                </span>
+                {bookmark.folderPath.length > 0 ? (
+                  <>
+                    <span className="shrink-0 text-[var(--color-border)]">/</span>
+                    <span
+                      className="min-w-0 max-w-[34%] truncate"
+                      title={bookmark.folderPath.join(' / ')}
+                    >
+                      {bookmark.folderPath.join(' / ')}
+                    </span>
+                  </>
+                ) : null}
+                {tagIds.length > 0 ? (
+                  <div className="hidden min-w-0 shrink-0 items-center gap-1 lg:flex">
+                    {visibleTagIds.map((tagId) => {
                     const tag = tagsById[tagId]
 
                     if (!tag) {
@@ -120,7 +130,7 @@ export const BookmarkList = ({
                     return (
                       <span
                         key={tagId}
-                        className="inline-flex max-w-full items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold sm:max-w-[9rem]"
+                        className="inline-flex max-w-[7rem] items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
                         style={{
                           backgroundColor: `${tag.color ?? '#2563eb'}22`,
                           color: tag.color ?? '#2563eb',
@@ -138,10 +148,19 @@ export const BookmarkList = ({
                       </span>
                     )
                   })}
-                </div>
-              ) : null}
+                    {hiddenTagCount > 0 ? (
+                      <span
+                        className="rounded-md bg-[var(--color-input)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-muted)]"
+                        title={`${hiddenTagCount} more tag${hiddenTagCount === 1 ? '' : 's'}`}
+                      >
+                        +{hiddenTagCount}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
-            <div className="col-span-3 flex flex-wrap items-center gap-1 md:col-span-1 md:justify-end">
+            <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
                 onClick={() => onOpenBookmark(bookmark)}
@@ -152,14 +171,14 @@ export const BookmarkList = ({
               <button
                 type="button"
                 onClick={() => onEditBookmark(bookmark)}
-                className="rounded-md border border-[var(--color-border)] bg-[var(--color-input)] px-2.5 py-1.5 text-[10px] font-semibold text-[var(--color-muted)] transition hover:bg-[var(--color-accent-soft)]"
+                className="hidden rounded-md border border-[var(--color-border)] bg-[var(--color-input)] px-2.5 py-1.5 text-[10px] font-semibold text-[var(--color-muted)] transition hover:bg-[var(--color-accent-soft)] sm:inline-flex"
               >
                 Edit
               </button>
               <button
                 type="button"
                 onClick={() => onOpenTagDialog(bookmark)}
-                className="rounded-md border border-[var(--color-border)] bg-[var(--color-input)] px-2.5 py-1.5 text-[10px] font-semibold text-[var(--color-muted)] transition hover:bg-[var(--color-accent-soft)]"
+                className="hidden rounded-md border border-[var(--color-border)] bg-[var(--color-input)] px-2.5 py-1.5 text-[10px] font-semibold text-[var(--color-muted)] transition hover:bg-[var(--color-accent-soft)] md:inline-flex"
               >
                 Tags
               </button>

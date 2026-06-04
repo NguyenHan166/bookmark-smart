@@ -61,6 +61,18 @@ export const createBookmark = async (
   return api.bookmarks.create(input)
 }
 
+export const createFolder = async (
+  input: Pick<chrome.bookmarks.CreateDetails, 'title' | 'parentId'>,
+) => {
+  const api = getChrome()
+
+  if (!api?.bookmarks) {
+    throw new Error('Chrome bookmarks API is not available in this context.')
+  }
+
+  return api.bookmarks.create(input)
+}
+
 export const updateBookmark = async (
   id: string,
   changes: chrome.bookmarks.UpdateChanges,
@@ -74,7 +86,30 @@ export const updateBookmark = async (
   return api.bookmarks.update(id, changes)
 }
 
+export const updateFolder = async (id: string, title: string) => {
+  const api = getChrome()
+
+  if (!api?.bookmarks) {
+    throw new Error('Chrome bookmarks API is not available in this context.')
+  }
+
+  return api.bookmarks.update(id, { title })
+}
+
 export const moveBookmark = async (
+  id: string,
+  destination: chrome.bookmarks.MoveDestination,
+) => {
+  const api = getChrome()
+
+  if (!api?.bookmarks) {
+    throw new Error('Chrome bookmarks API is not available in this context.')
+  }
+
+  return api.bookmarks.move(id, destination)
+}
+
+export const moveFolder = async (
   id: string,
   destination: chrome.bookmarks.MoveDestination,
 ) => {

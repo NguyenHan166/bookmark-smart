@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   createBookmark,
+  createFolder,
   clearDeleteUndoState,
   createTagDefinition,
   deleteTagDefinition,
@@ -9,6 +10,7 @@ import {
   getTagStore,
   isChromeBookmarksAvailable,
   moveBookmark,
+  moveFolder,
   openBookmarkInTab,
   removeBookmark,
   removeFolderTree,
@@ -19,6 +21,7 @@ import {
   setTagsForBookmarks,
   updateTagDefinition,
   updateBookmark,
+  updateFolder,
 } from '../lib/chrome-api'
 import { buildFolderTree, flattenBookmarks } from '../lib/bookmark-utils'
 import type {
@@ -34,6 +37,11 @@ import {
 } from './BookmarkDialog'
 import { BookmarkManagerView } from './BookmarkManagerView'
 import { CleanupDashboard } from './CleanupDashboard'
+import {
+  FolderDialog,
+  type FolderDialogMode,
+  type FolderFormValues,
+} from './FolderDialog'
 import { MoveBookmarksDialog } from './MoveBookmarksDialog'
 import { Sidebar } from './Sidebar'
 import { TagAssignmentDialog } from './TagAssignmentDialog'
@@ -72,6 +80,12 @@ export default function App() {
   )
   const [isBookmarkDialogOpen, setIsBookmarkDialogOpen] = useState(false)
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false)
+  const [folderDialogMode, setFolderDialogMode] = useState<FolderDialogMode>(
+    'create',
+  )
+  const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false)
+  const [folderDialogDefaultParentId, setFolderDialogDefaultParentId] =
+    useState('')
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false)
   const [tagDialogBookmarkIds, setTagDialogBookmarkIds] = useState<string[]>([])
   const [tagDialogInitialTagIds, setTagDialogInitialTagIds] = useState<string[]>(
@@ -139,11 +153,26 @@ export default function App() {
 
     return findFolder(folders, selectedFolderId)
   }, [folders, selectedFolderId])
+  const isSelectedFolderSystem = Boolean(
+    selectedFolder && isSystemFolder(selectedFolder),
+  )
+  const canModifySelectedFolder = Boolean(
+    selectedFolder && !isSelectedFolderSystem,
+  )
 
   const listTitle = selectedFolder?.title ?? 'All Bookmarks'
   const isEmptyLibrary = bookmarks.length === 0
   const selectedCount = selectedBookmarkIds.size
   const folderOptions = useMemo(() => getFolderOptions(folders), [folders])
+  const folderMoveOptions = useMemo(() => {
+    if (!selectedFolderId) {
+      return folderOptions
+    }
+
+    const blockedIds = getFolderAndDescendantIds(folders, selectedFolderId)
+
+    return folderOptions.filter((folder) => !blockedIds.has(folder.id))
+  }, [folderOptions, folders, selectedFolderId])
   const tagsById = useMemo(() => {
     return Object.fromEntries(tags.map((tag) => [tag.id, tag]))
   }, [tags])
@@ -348,6 +377,100 @@ export default function App() {
     setIsBookmarkDialogOpen(true)
   }
 
+  const openCreateFolderDialog = (parentId = selectedFolderId) => {
+    const nextParentId = parentId ?? defaultParentId
+
+    if (!nextParentId) {
+      showToast({
+        tone: 'error',
+        message: 'No parent folder is available.',
+      })
+      return
+    }
+
+    setFolderDialogMode('create')
+    setFolderDialogDefaultParentId(nextParentId)
+    setIsFolderDialogOpen(true)
+  }
+
+  const openRenameFolderDialog = () => {
+    if (!selectedFolder || !canModifySelectedFolder) {
+      showToast({
+        tone: 'error',
+        message: 'This folder cannot be renamed.',
+      })
+      return
+    }
+
+    setFolderDialogMode('rename')
+    setFolderDialogDefaultParentId(selectedFolder.parentId ?? defaultParentId)
+    setIsFolderDialogOpen(true)
+  }
+
+  const openMoveFolderDialog = () => {
+    if (!selectedFolder || !canModifySelectedFolder) {
+      showToast({
+        tone: 'error',
+        message: 'This folder cannot be moved.',
+      })
+      return
+    }
+
+    if (folderMoveOptions.length === 0) {
+      showToast({
+        tone: 'error',
+        message: 'No destination folder is available.',
+      })
+      return
+    }
+
+    setFolderDialogMode('move')
+    setFolderDialogDefaultParentId(
+      folderMoveOptions.some((folder) => folder.id === selectedFolder.parentId)
+        ? selectedFolder.parentId ?? folderMoveOptions[0]?.id ?? ''
+        : folderMoveOptions[0]?.id ?? '',
+    )
+    setIsFolderDialogOpen(true)
+  }
+
+  const handleFolderDialogSubmit = async (values: FolderFormValues) => {
+    try {
+      if (folderDialogMode === 'create') {
+        await createFolder({
+          title: values.title,
+          parentId: values.parentId,
+        })
+        setIsFolderDialogOpen(false)
+        await reloadAfterAction('Folder created.')
+        return
+      }
+
+      if (!selectedFolderId || !selectedFolder) {
+        throw new Error('No folder is selected.')
+      }
+
+      if (!canModifySelectedFolder) {
+        throw new Error('This browser system folder cannot be modified.')
+      }
+
+      if (folderDialogMode === 'rename') {
+        await updateFolder(selectedFolderId, values.title)
+        setIsFolderDialogOpen(false)
+        await reloadAfterAction('Folder renamed.')
+        return
+      }
+
+      await moveFolder(selectedFolderId, { parentId: values.parentId })
+      setIsFolderDialogOpen(false)
+      await reloadAfterAction('Folder moved.')
+    } catch (err) {
+      showToast({
+        tone: 'error',
+        message: err instanceof Error ? err.message : 'Unable to update folder.',
+      })
+    }
+  }
+
   const handleDeleteBookmark = async (bookmark: FlatBookmark) => {
     const shouldDelete = window.confirm(
       `Delete "${bookmark.title}"?`,
@@ -519,11 +642,20 @@ export default function App() {
       return
     }
 
+    if (!canModifySelectedFolder) {
+      showToast({
+        tone: 'error',
+        message: 'This browser system folder cannot be deleted.',
+      })
+      return
+    }
+
     const bookmarksInFolder = bookmarks.filter((bookmark) =>
       bookmark.folderPathIds.includes(selectedFolderId),
     )
+    const descendantFolderCount = countDescendantFolders(selectedFolder)
     const shouldDelete = window.confirm(
-      `Delete folder "${selectedFolder.title}" and ${bookmarksInFolder.length} bookmark${bookmarksInFolder.length === 1 ? '' : 's'} inside it? This cannot be undone.`,
+      `Delete folder "${selectedFolder.title}"?\n\nThis will delete ${bookmarksInFolder.length} bookmark${bookmarksInFolder.length === 1 ? '' : 's'} and ${descendantFolderCount} subfolder${descendantFolderCount === 1 ? '' : 's'} inside it.\n\nThis cannot be undone.`,
     )
 
     if (!shouldDelete) {
@@ -714,10 +846,15 @@ export default function App() {
             tagCounts={tagCounts}
             selectedFolderId={selectedFolderId}
             selectedTagId={selectedTagId}
+            canModifySelectedFolder={canModifySelectedFolder}
             isLoading={isLoading}
             hasError={Boolean(error)}
             onSelectFolder={setSelectedFolderId}
             onSelectTag={setSelectedTagId}
+            onCreateFolder={() => openCreateFolderDialog(null)}
+            onCreateSubfolder={() => openCreateFolderDialog(selectedFolderId)}
+            onRenameSelectedFolder={openRenameFolderDialog}
+            onMoveSelectedFolder={openMoveFolderDialog}
             onCreateTag={handleCreateTag}
             onUpdateTag={handleUpdateTag}
             onDeleteTag={handleDeleteTag}
@@ -815,6 +952,17 @@ export default function App() {
         onClose={() => setIsMoveDialogOpen(false)}
         onMove={handleMoveSelected}
       />
+      <FolderDialog
+        mode={folderDialogMode}
+        folderName={selectedFolder?.title ?? ''}
+        folderOptions={folderDialogMode === 'move'
+          ? folderMoveOptions
+          : folderOptions}
+        defaultParentId={folderDialogDefaultParentId || defaultParentId}
+        isOpen={isFolderDialogOpen}
+        onClose={() => setIsFolderDialogOpen(false)}
+        onSubmit={handleFolderDialogSubmit}
+      />
       <TagAssignmentDialog
         isOpen={isTagDialogOpen}
         tags={tags}
@@ -845,4 +993,36 @@ const findFolder = (
   }
 
   return null
+}
+
+const isSystemFolder = (folder: BookmarkFolder) => {
+  return !folder.parentId || folder.parentId === '0'
+}
+
+const countDescendantFolders = (folder: BookmarkFolder): number => {
+  return folder.children.reduce(
+    (count, child) => count + 1 + countDescendantFolders(child),
+    0,
+  )
+}
+
+const getFolderAndDescendantIds = (
+  folders: BookmarkFolder[],
+  folderId: string,
+) => {
+  const ids = new Set<string>()
+  const folder = findFolder(folders, folderId)
+
+  if (!folder) {
+    return ids
+  }
+
+  const walk = (item: BookmarkFolder) => {
+    ids.add(item.id)
+    item.children.forEach(walk)
+  }
+
+  walk(folder)
+
+  return ids
 }
