@@ -372,6 +372,55 @@ export const removeTagFromBookmark = async (
   })
 }
 
+export const setBookmarkNote = async (bookmarkId: string, note: string) => {
+  const metadataStore = await getMetadataStore()
+  const bookmarks = { ...metadataStore.bookmarks }
+  const existing = bookmarks[bookmarkId]
+  const nextMetadata = {
+    ...existing,
+    bookmarkId,
+    tags: existing?.tags ?? [],
+    note: note.trim() || undefined,
+  }
+
+  if (shouldKeepMetadata(nextMetadata)) {
+    bookmarks[bookmarkId] = nextMetadata
+  } else {
+    delete bookmarks[bookmarkId]
+  }
+
+  await setMetadataStore({
+    ...metadataStore,
+    bookmarks,
+  })
+}
+
+export const setBookmarkPinned = async (
+  bookmarkId: string,
+  isPinned: boolean,
+) => {
+  const metadataStore = await getMetadataStore()
+  const bookmarks = { ...metadataStore.bookmarks }
+  const existing = bookmarks[bookmarkId]
+  const nextMetadata = {
+    ...existing,
+    bookmarkId,
+    tags: existing?.tags ?? [],
+    favorite: isPinned || undefined,
+  }
+
+  if (shouldKeepMetadata(nextMetadata)) {
+    bookmarks[bookmarkId] = nextMetadata
+  } else {
+    delete bookmarks[bookmarkId]
+  }
+
+  await setMetadataStore({
+    ...metadataStore,
+    bookmarks,
+  })
+}
+
 export const removeMetadataForBookmarks = async (bookmarkIds: string[]) => {
   if (bookmarkIds.length === 0) {
     return

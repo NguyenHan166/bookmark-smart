@@ -18,6 +18,8 @@ import {
   removeTagFromBookmark,
   restoreLastDeletedBookmarks,
   saveDeleteUndoState,
+  setBookmarkNote,
+  setBookmarkPinned,
   setTagsForBookmarks,
   updateTagDefinition,
   updateBookmark,
@@ -44,6 +46,7 @@ import {
   type FolderFormValues,
 } from './FolderDialog'
 import { MoveBookmarksDialog } from './MoveBookmarksDialog'
+import { NoteDialog } from './NoteDialog'
 import { Sidebar } from './Sidebar'
 import { TagAssignmentDialog } from './TagAssignmentDialog'
 import { Toast, type ToastState } from './Toast'
@@ -81,6 +84,9 @@ export default function App() {
     'add',
   )
   const [editingBookmark, setEditingBookmark] = useState<FlatBookmark | null>(
+    null,
+  )
+  const [notingBookmark, setNotingBookmark] = useState<FlatBookmark | null>(
     null,
   )
   const [isBookmarkDialogOpen, setIsBookmarkDialogOpen] = useState(false)
@@ -121,6 +127,8 @@ export default function App() {
         ...bookmark,
         tagIds: (metadataStore.bookmarks[bookmark.id]?.tags ?? [])
           .filter((tagId) => knownTagIds.has(tagId)),
+        note: metadataStore.bookmarks[bookmark.id]?.note,
+        isPinned: Boolean(metadataStore.bookmarks[bookmark.id]?.favorite),
       }))
       const nextTags = Object.values(tagStore.tags)
         .sort((left, right) => left.name.localeCompare(right.name))
@@ -867,6 +875,45 @@ export default function App() {
     }
   }
 
+  const handleTogglePinned = async (bookmark: FlatBookmark) => {
+    try {
+      await setBookmarkPinned(bookmark.id, !bookmark.isPinned)
+      await loadBookmarks()
+      showToast({
+        tone: 'success',
+        message: bookmark.isPinned
+          ? 'Bookmark unpinned.'
+          : 'Bookmark pinned.',
+      })
+    } catch (err) {
+      showToast({
+        tone: 'error',
+        message: err instanceof Error ? err.message : 'Unable to update pin.',
+      })
+    }
+  }
+
+  const handleSaveNote = async (note: string) => {
+    if (!notingBookmark) {
+      return
+    }
+
+    try {
+      await setBookmarkNote(notingBookmark.id, note)
+      setNotingBookmark(null)
+      await loadBookmarks()
+      showToast({
+        tone: 'success',
+        message: note.trim() ? 'Note saved.' : 'Note removed.',
+      })
+    } catch (err) {
+      showToast({
+        tone: 'error',
+        message: err instanceof Error ? err.message : 'Unable to save note.',
+      })
+    }
+  }
+
   return (
     <>
       <AppShell
@@ -981,6 +1028,8 @@ export default function App() {
             onDeleteBookmark={handleDeleteBookmark}
             onOpenTagDialog={openTagDialogForBookmark}
             onRemoveTag={handleRemoveTagFromBookmark}
+            onTogglePinned={handleTogglePinned}
+            onOpenNoteDialog={setNotingBookmark}
             onRetry={loadBookmarks}
           />
         )}
@@ -1039,6 +1088,12 @@ export default function App() {
         initialTagIds={tagDialogInitialTagIds}
         onClose={() => setIsTagDialogOpen(false)}
         onApply={handleApplyTags}
+      />
+      <NoteDialog
+        bookmark={notingBookmark}
+        isOpen={Boolean(notingBookmark)}
+        onClose={() => setNotingBookmark(null)}
+        onSave={handleSaveNote}
       />
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </>

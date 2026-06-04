@@ -1,12 +1,13 @@
 import type { FlatBookmark } from '../types/bookmarks'
 
-export type QuickFilter = 'all' | 'untitled' | 'untagged'
+export type QuickFilter = 'all' | 'untitled' | 'untagged' | 'pinned'
 export type BookmarkSort = 'date-desc' | 'date-asc' | 'title-asc' | 'domain-asc'
 
 export const quickFilterLabels: Record<QuickFilter, string> = {
   all: 'All',
   untitled: 'Untitled',
   untagged: 'Untagged',
+  pinned: 'Pinned',
 }
 
 type BookmarkFilterInput = {
@@ -31,6 +32,7 @@ const includesSearchQuery = (bookmark: FlatBookmark, query: string) => {
     bookmark.domain,
     bookmark.folderPath.join(' '),
     bookmark.folderPath.join(' / '),
+    bookmark.note ?? '',
   ]
     .join(' ')
     .toLowerCase()
@@ -48,6 +50,10 @@ const matchesQuickFilter = (
 
   if (quickFilter === 'untagged') {
     return !bookmark.tagIds?.length
+  }
+
+  if (quickFilter === 'pinned') {
+    return Boolean(bookmark.isPinned)
   }
 
   return true
@@ -100,6 +106,10 @@ export const filterBookmarks = ({
   })
 
   return [...filtered].sort((left, right) => {
+    if (left.isPinned !== right.isPinned) {
+      return left.isPinned ? -1 : 1
+    }
+
     if (sort === 'title-asc') {
       return left.title.localeCompare(right.title)
     }

@@ -11,6 +11,8 @@ export interface FlatBookmark {
   dateAdded?: number
   isUntitled: boolean
   tagIds?: string[]
+  note?: string
+  isPinned?: boolean
 }
 
 export interface BookmarkFolder {

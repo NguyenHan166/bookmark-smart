@@ -35,6 +35,8 @@ type BookmarkListProps = {
   onDeleteBookmark: (bookmark: FlatBookmark) => void
   onOpenTagDialog: (bookmark: FlatBookmark) => void
   onRemoveTag: (bookmarkId: string, tagId: string) => void
+  onTogglePinned: (bookmark: FlatBookmark) => void
+  onOpenNoteDialog: (bookmark: FlatBookmark) => void
 }
 
 export const BookmarkList = ({
@@ -47,6 +49,8 @@ export const BookmarkList = ({
   onDeleteBookmark,
   onOpenTagDialog,
   onRemoveTag,
+  onTogglePinned,
+  onOpenNoteDialog,
 }: BookmarkListProps) => (
   <ul className="min-w-0 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] shadow-[var(--shadow-soft)]">
     {bookmarks.map((bookmark) => {
@@ -87,12 +91,28 @@ export const BookmarkList = ({
             </span>
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
+                {bookmark.isPinned ? (
+                  <span
+                    className="shrink-0 rounded-md bg-[var(--color-warning)] px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                    title="Pinned"
+                  >
+                    Pin
+                  </span>
+                ) : null}
                 <p
                   className="min-w-0 truncate text-sm font-semibold leading-5 text-[var(--color-title)]"
                   title={bookmark.title}
                 >
                   {bookmark.title}
                 </p>
+                {bookmark.note ? (
+                  <span
+                    className="shrink-0 rounded-md bg-[var(--color-input)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-muted)]"
+                    title={bookmark.note}
+                  >
+                    Note
+                  </span>
+                ) : null}
                 <span
                   className="hidden shrink-0 rounded-md bg-[var(--color-accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-accent)] sm:inline-flex"
                   title={bookmark.domain}
@@ -181,6 +201,24 @@ export const BookmarkList = ({
                 className="hidden rounded-md border border-[var(--color-border)] bg-[var(--color-input)] px-2.5 py-1.5 text-[10px] font-semibold text-[var(--color-muted)] transition hover:bg-[var(--color-accent-soft)] md:inline-flex"
               >
                 Tags
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenNoteDialog(bookmark)}
+                className="hidden rounded-md border border-[var(--color-border)] bg-[var(--color-input)] px-2.5 py-1.5 text-[10px] font-semibold text-[var(--color-muted)] transition hover:bg-[var(--color-accent-soft)] lg:inline-flex"
+              >
+                Note
+              </button>
+              <button
+                type="button"
+                onClick={() => onTogglePinned(bookmark)}
+                className={`rounded-md border px-2.5 py-1.5 text-[10px] font-semibold transition ${
+                  bookmark.isPinned
+                    ? 'border-[var(--color-warning)] bg-[var(--color-warning)] text-white hover:opacity-90'
+                    : 'border-[var(--color-border)] bg-[var(--color-input)] text-[var(--color-muted)] hover:bg-[var(--color-accent-soft)]'
+                }`}
+              >
+                {bookmark.isPinned ? 'Unpin' : 'Pin'}
               </button>
               <button
                 type="button"

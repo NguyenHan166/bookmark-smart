@@ -48,6 +48,8 @@ type BookmarkManagerViewProps = {
   onDeleteBookmark: (bookmark: FlatBookmark) => void
   onOpenTagDialog: (bookmark: FlatBookmark) => void
   onRemoveTag: (bookmarkId: string, tagId: string) => void
+  onTogglePinned: (bookmark: FlatBookmark) => void
+  onOpenNoteDialog: (bookmark: FlatBookmark) => void
   onRetry: () => void
 }
 
@@ -93,6 +95,8 @@ export const BookmarkManagerView = ({
   onDeleteBookmark,
   onOpenTagDialog,
   onRemoveTag,
+  onTogglePinned,
+  onOpenNoteDialog,
   onRetry,
 }: BookmarkManagerViewProps) => (
   <>
@@ -144,6 +148,8 @@ export const BookmarkManagerView = ({
           onDeleteBookmark={onDeleteBookmark}
           onOpenTagDialog={onOpenTagDialog}
           onRemoveTag={onRemoveTag}
+          onTogglePinned={onTogglePinned}
+          onOpenNoteDialog={onOpenNoteDialog}
         />
       )}
     </div>
