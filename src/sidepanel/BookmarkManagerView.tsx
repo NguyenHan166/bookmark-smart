@@ -2,7 +2,8 @@ import type { RefObject } from 'react'
 import type { FlatBookmark, TagDefinition } from '../types/bookmarks'
 import { BookmarkList, BulkActionBar } from './BookmarkList'
 import { BookmarkToolbar } from './BookmarkToolbar'
-import type { QuickFilter } from './bookmark-filters'
+import type { BookmarkSort, QuickFilter } from './bookmark-filters'
+import type { FolderOption } from './folder-options'
 import { EmptyState, ErrorState, LoadingList } from './StatusStates'
 
 type BookmarkManagerViewProps = {
@@ -13,6 +14,14 @@ type BookmarkManagerViewProps = {
   selectedBookmarkIds: Set<string>
   searchQuery: string
   quickFilter: QuickFilter
+  folderId: string | null
+  tagId: string | null
+  domain: string
+  sameDomainOnly: boolean
+  sort: BookmarkSort
+  folderOptions: FolderOption[]
+  tags: TagDefinition[]
+  domainOptions: string[]
   selectedCount: number
   areAllVisibleSelected: boolean
   isLoading: boolean
@@ -22,6 +31,11 @@ type BookmarkManagerViewProps = {
   searchInputRef: RefObject<HTMLInputElement | null>
   onSearchChange: (value: string) => void
   onQuickFilterChange: (filter: QuickFilter) => void
+  onFolderChange: (folderId: string | null) => void
+  onTagChange: (tagId: string | null) => void
+  onDomainChange: (domain: string) => void
+  onSameDomainOnlyChange: (enabled: boolean) => void
+  onSortChange: (sort: BookmarkSort) => void
   onToggleVisibleSelection: () => void
   onDeleteSelected: () => void
   onClearSelection: () => void
@@ -45,6 +59,14 @@ export const BookmarkManagerView = ({
   selectedBookmarkIds,
   searchQuery,
   quickFilter,
+  folderId,
+  tagId,
+  domain,
+  sameDomainOnly,
+  sort,
+  folderOptions,
+  tags,
+  domainOptions,
   selectedCount,
   areAllVisibleSelected,
   isLoading,
@@ -54,6 +76,11 @@ export const BookmarkManagerView = ({
   searchInputRef,
   onSearchChange,
   onQuickFilterChange,
+  onFolderChange,
+  onTagChange,
+  onDomainChange,
+  onSameDomainOnlyChange,
+  onSortChange,
   onToggleVisibleSelection,
   onDeleteSelected,
   onClearSelection,
@@ -74,11 +101,24 @@ export const BookmarkManagerView = ({
       itemCountLabel={itemCountLabel}
       searchQuery={searchQuery}
       quickFilter={quickFilter}
+      folderId={folderId}
+      tagId={tagId}
+      domain={domain}
+      sameDomainOnly={sameDomainOnly}
+      sort={sort}
+      folderOptions={folderOptions}
+      tags={tags}
+      domainOptions={domainOptions}
       selectedCount={selectedCount}
       areAllVisibleSelected={areAllVisibleSelected}
       searchInputRef={searchInputRef}
       onSearchChange={onSearchChange}
       onQuickFilterChange={onQuickFilterChange}
+      onFolderChange={onFolderChange}
+      onTagChange={onTagChange}
+      onDomainChange={onDomainChange}
+      onSameDomainOnlyChange={onSameDomainOnlyChange}
+      onSortChange={onSortChange}
       onToggleVisibleSelection={onToggleVisibleSelection}
       onDeleteSelected={onDeleteSelected}
     />

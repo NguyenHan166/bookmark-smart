@@ -48,6 +48,7 @@ import { TagAssignmentDialog } from './TagAssignmentDialog'
 import { Toast, type ToastState } from './Toast'
 import {
   filterBookmarks,
+  type BookmarkSort,
   type QuickFilter,
 } from './bookmark-filters'
 import { getCleanupStats, type DuplicateBookmarkGroup } from './cleanup-utils'
@@ -64,6 +65,9 @@ export default function App() {
   const [showFolders, setShowFolders] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all')
+  const [selectedDomain, setSelectedDomain] = useState('')
+  const [sameDomainOnly, setSameDomainOnly] = useState(false)
+  const [bookmarkSort, setBookmarkSort] = useState<BookmarkSort>('date-desc')
   const [activeView, setActiveView] = useState<SidePanelView>('bookmarks')
   const [isReviewingDuplicates, setIsReviewingDuplicates] = useState(false)
   const [duplicateKeepIds, setDuplicateKeepIds] = useState<Record<string, string>>(
@@ -141,10 +145,22 @@ export default function App() {
       bookmarks,
       folderId: selectedFolderId,
       tagId: selectedTagId,
+      domain: selectedDomain,
+      sameDomainOnly,
       searchQuery,
       quickFilter,
+      sort: bookmarkSort,
     })
-  }, [bookmarks, quickFilter, searchQuery, selectedFolderId, selectedTagId])
+  }, [
+    bookmarkSort,
+    bookmarks,
+    quickFilter,
+    sameDomainOnly,
+    searchQuery,
+    selectedDomain,
+    selectedFolderId,
+    selectedTagId,
+  ])
 
   const selectedFolder = useMemo(() => {
     if (!selectedFolderId) {
@@ -164,6 +180,11 @@ export default function App() {
   const isEmptyLibrary = bookmarks.length === 0
   const selectedCount = selectedBookmarkIds.size
   const folderOptions = useMemo(() => getFolderOptions(folders), [folders])
+  const domainOptions = useMemo(() => {
+    return Array.from(new Set(bookmarks.map((bookmark) => bookmark.domain)))
+      .filter(Boolean)
+      .sort((left, right) => left.localeCompare(right))
+  }, [bookmarks])
   const folderMoveOptions = useMemo(() => {
     if (!selectedFolderId) {
       return folderOptions
@@ -193,7 +214,12 @@ export default function App() {
   const areAllVisibleSelected = filteredBookmarks.length > 0 &&
     filteredBookmarks.every((bookmark) => selectedBookmarkIds.has(bookmark.id))
   const hasActiveFilters = Boolean(
-    searchQuery.trim() || quickFilter !== 'all' || selectedTagId,
+    searchQuery.trim() ||
+      quickFilter !== 'all' ||
+      selectedFolderId ||
+      selectedTagId ||
+      selectedDomain ||
+      sameDomainOnly,
   )
   const itemCountLabel = isLoading
     ? 'Loading bookmarks...'
@@ -895,6 +921,14 @@ export default function App() {
             selectedBookmarkIds={selectedBookmarkIds}
             searchQuery={searchQuery}
             quickFilter={quickFilter}
+            folderId={selectedFolderId}
+            tagId={selectedTagId}
+            domain={selectedDomain}
+            sameDomainOnly={sameDomainOnly}
+            sort={bookmarkSort}
+            folderOptions={folderOptions}
+            tags={tags}
+            domainOptions={domainOptions}
             selectedCount={selectedCount}
             areAllVisibleSelected={areAllVisibleSelected}
             isLoading={isLoading}
@@ -904,6 +938,11 @@ export default function App() {
             searchInputRef={searchInputRef}
             onSearchChange={setSearchQuery}
             onQuickFilterChange={setQuickFilter}
+            onFolderChange={setSelectedFolderId}
+            onTagChange={setSelectedTagId}
+            onDomainChange={setSelectedDomain}
+            onSameDomainOnlyChange={setSameDomainOnly}
+            onSortChange={setBookmarkSort}
             onToggleVisibleSelection={toggleVisibleSelection}
             onDeleteSelected={handleDeleteSelected}
             onClearSelection={() => setSelectedBookmarkIds(new Set())}
