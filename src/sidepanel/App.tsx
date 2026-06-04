@@ -37,6 +37,7 @@ import {
 } from './BookmarkDialog'
 import { BookmarkManagerView } from './BookmarkManagerView'
 import { CleanupDashboard } from './CleanupDashboard'
+import { FolderDeleteDialog } from './FolderDeleteDialog'
 import {
   FolderDialog,
   type FolderDialogMode,
@@ -90,6 +91,9 @@ export default function App() {
   const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false)
   const [folderDialogDefaultParentId, setFolderDialogDefaultParentId] =
     useState('')
+  const [deletingFolder, setDeletingFolder] = useState<BookmarkFolder | null>(
+    null,
+  )
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false)
   const [tagDialogBookmarkIds, setTagDialogBookmarkIds] = useState<string[]>([])
   const [tagDialogInitialTagIds, setTagDialogInitialTagIds] = useState<string[]>(
@@ -419,8 +423,8 @@ export default function App() {
     setIsFolderDialogOpen(true)
   }
 
-  const openRenameFolderDialog = () => {
-    if (!selectedFolder || !canModifySelectedFolder) {
+  const openRenameFolderDialog = (folder = selectedFolder) => {
+    if (!folder || isSystemFolder(folder)) {
       showToast({
         tone: 'error',
         message: 'This folder cannot be renamed.',
@@ -428,13 +432,14 @@ export default function App() {
       return
     }
 
+    setSelectedFolderId(folder.id)
     setFolderDialogMode('rename')
-    setFolderDialogDefaultParentId(selectedFolder.parentId ?? defaultParentId)
+    setFolderDialogDefaultParentId(folder.parentId ?? defaultParentId)
     setIsFolderDialogOpen(true)
   }
 
-  const openMoveFolderDialog = () => {
-    if (!selectedFolder || !canModifySelectedFolder) {
+  const openMoveFolderDialog = (folder = selectedFolder) => {
+    if (!folder || isSystemFolder(folder)) {
       showToast({
         tone: 'error',
         message: 'This folder cannot be moved.',
@@ -442,7 +447,12 @@ export default function App() {
       return
     }
 
-    if (folderMoveOptions.length === 0) {
+    const blockedIds = getFolderAndDescendantIds(folders, folder.id)
+    const availableMoveOptions = folderOptions.filter((option) =>
+      !blockedIds.has(option.id),
+    )
+
+    if (availableMoveOptions.length === 0) {
       showToast({
         tone: 'error',
         message: 'No destination folder is available.',
@@ -450,13 +460,27 @@ export default function App() {
       return
     }
 
+    setSelectedFolderId(folder.id)
     setFolderDialogMode('move')
     setFolderDialogDefaultParentId(
-      folderMoveOptions.some((folder) => folder.id === selectedFolder.parentId)
-        ? selectedFolder.parentId ?? folderMoveOptions[0]?.id ?? ''
-        : folderMoveOptions[0]?.id ?? '',
+      availableMoveOptions.some((option) => option.id === folder.parentId)
+        ? folder.parentId ?? availableMoveOptions[0]?.id ?? ''
+        : availableMoveOptions[0]?.id ?? '',
     )
     setIsFolderDialogOpen(true)
+  }
+
+  const requestDeleteFolder = (folder: BookmarkFolder) => {
+    if (isSystemFolder(folder)) {
+      showToast({
+        tone: 'error',
+        message: 'This browser system folder cannot be deleted.',
+      })
+      return
+    }
+
+    setSelectedFolderId(folder.id)
+    setDeletingFolder(folder)
   }
 
   const handleFolderDialogSubmit = async (values: FolderFormValues) => {
@@ -663,12 +687,12 @@ export default function App() {
     }
   }
 
-  const handleDeleteSelectedFolder = async () => {
-    if (!selectedFolderId || !selectedFolder) {
+  const handleConfirmDeleteFolder = async () => {
+    if (!deletingFolder) {
       return
     }
 
-    if (!canModifySelectedFolder) {
+    if (isSystemFolder(deletingFolder)) {
       showToast({
         tone: 'error',
         message: 'This browser system folder cannot be deleted.',
@@ -677,27 +701,20 @@ export default function App() {
     }
 
     const bookmarksInFolder = bookmarks.filter((bookmark) =>
-      bookmark.folderPathIds.includes(selectedFolderId),
+      bookmark.folderPathIds.includes(deletingFolder.id),
     )
-    const descendantFolderCount = countDescendantFolders(selectedFolder)
-    const shouldDelete = window.confirm(
-      `Delete folder "${selectedFolder.title}"?\n\nThis will delete ${bookmarksInFolder.length} bookmark${bookmarksInFolder.length === 1 ? '' : 's'} and ${descendantFolderCount} subfolder${descendantFolderCount === 1 ? '' : 's'} inside it.\n\nThis cannot be undone.`,
-    )
-
-    if (!shouldDelete) {
-      return
-    }
 
     try {
-      await removeFolderTree(selectedFolderId)
+      await removeFolderTree(deletingFolder.id)
       await removeMetadataForBookmarks(
         bookmarksInFolder.map((bookmark) => bookmark.id),
       )
       setSelectedFolderId(null)
+      setDeletingFolder(null)
       await loadBookmarks()
       showToast({
         tone: 'success',
-        message: `Folder "${selectedFolder.title}" deleted.`,
+        message: `Folder "${deletingFolder.title}" deleted.`,
       })
     } catch (err) {
       showToast({
@@ -872,19 +889,18 @@ export default function App() {
             tagCounts={tagCounts}
             selectedFolderId={selectedFolderId}
             selectedTagId={selectedTagId}
-            canModifySelectedFolder={canModifySelectedFolder}
             isLoading={isLoading}
             hasError={Boolean(error)}
             onSelectFolder={setSelectedFolderId}
             onSelectTag={setSelectedTagId}
             onCreateFolder={() => openCreateFolderDialog(null)}
-            onCreateSubfolder={() => openCreateFolderDialog(selectedFolderId)}
-            onRenameSelectedFolder={openRenameFolderDialog}
-            onMoveSelectedFolder={openMoveFolderDialog}
+            onCreateSubfolder={(folder) => openCreateFolderDialog(folder.id)}
+            onRenameFolder={openRenameFolderDialog}
+            onMoveFolder={openMoveFolderDialog}
             onCreateTag={handleCreateTag}
             onUpdateTag={handleUpdateTag}
             onDeleteTag={handleDeleteTag}
-            onDeleteSelectedFolder={handleDeleteSelectedFolder}
+            onDeleteFolder={requestDeleteFolder}
           />
         )}
       >
@@ -1001,6 +1017,20 @@ export default function App() {
         isOpen={isFolderDialogOpen}
         onClose={() => setIsFolderDialogOpen(false)}
         onSubmit={handleFolderDialogSubmit}
+      />
+      <FolderDeleteDialog
+        folder={deletingFolder}
+        bookmarkCount={deletingFolder
+          ? bookmarks.filter((bookmark) =>
+            bookmark.folderPathIds.includes(deletingFolder.id),
+          ).length
+          : 0}
+        subfolderCount={deletingFolder
+          ? countDescendantFolders(deletingFolder)
+          : 0}
+        isOpen={Boolean(deletingFolder)}
+        onClose={() => setDeletingFolder(null)}
+        onConfirm={handleConfirmDeleteFolder}
       />
       <TagAssignmentDialog
         isOpen={isTagDialogOpen}
